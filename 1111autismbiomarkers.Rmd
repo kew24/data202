@@ -1,0 +1,190 @@
+---
+title: "1111classPLOSautismbiomarkers"
+author: "Kaitlyn Westra"
+date: "11/11/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(tidyverse)
+library(tidymodels)
+#library(ggridges)
+```
+
+```{r}
+data_filename <- "data/autism.csv"
+if (!file.exists(data_filename)) {
+  dir.create("data")
+  download.file("https://doi.org/10.1371/journal.pcbi.1005385.s001", data_filename)
+}
+col_names <- names(read_csv(data_filename, n_max = 1, col_types = cols(.default = col_character())))
+autism <- read_csv(data_filename, skip = 2, col_names = col_names, col_types = cols(
+  .default = col_double(),
+  Group = col_character()
+)) %>% mutate(
+  Group = as_factor(Group)
+)
+```
+
+
+```{r}
+autism %>% select(-1, -last_col())
+
+#life skills, for ASD children
+autism %>% 
+  ggplot(aes(x = `Vineland ABC`, y = Group)) + geom_boxplot()
+```
+
+```{r}
+autism %>%
+  select(-`Vineland ABC`) %>% 
+  pivot_longer(-Group, names_to = "Measure") %>% 
+  ggplot(aes(x = value, y = Measure)) +
+  ggplot2::geom_boxplot() + 
+  facet_wrap(vars(Group), scales = "free_x")
+```
+
+
+```{r}
+autism %>%
+  select(-`Vineland ABC`) %>% 
+  pivot_longer(-Group, names_to = "Measure") %>% 
+  ggplot(aes(x = value, y = Group)) +
+  geom_boxplot() +
+  facet_wrap(vars(Measure), scales = "free_x")# + 
+  #theme_ridges()
+```
+
+% oxidized seems to be higher for ASD. Maybe a cutoff @ 0.15 would be useful here to predict. Maybe a decision tree could cut here.
+
+
+
+Let's start by (1) ignoring the behavior scores (that's an outcome) and comparing just ASD and NEU.  
+We need to drop SIB... and tell the model that we don't actually care about it.
+
+```{r}
+data <- 
+  autism %>% 
+  select(-`Vineland ABC`) %>% 
+  filter(Group != "SIB") %>% 
+  mutate(Group = factor(Group))
+```
+
+```{r}
+spec <- workflow() %>% add_recipe(
+  recipe(Group ~ ., data = data)) %>%
+  add_model(decision_tree(mode = "classification") %>% set_engine("rpart"))
+model <- spec %>% fit(data)
+```
+
+```{r}
+model %>% predict(data, type = "prob")
+```
+
+2 cols: how likely they are to have ASD vs NEU. probability.
+
+```{r}
+model %>%
+  predict(data, type = "prob") %>%
+  bind_cols(data) %>% 
+  mutate(idx = row_number()) %>% 
+  ggplot(aes(x = idx, y = .pred_ASD, color = Group, shape = Group)) +
+  geom_hline(yintercept = .5) +
+  geom_point()
+```
+
+
+Looking @ where the model disagrees could tell us more about the disease, too. 
+
+Quantifying:
+
+```{r}
+metrics <- yardstick::metric_set(accuracy, sensitivity, specificity)
+model %>% 
+  predict(data, type = "class") %>% 
+  bind_cols(data) %>% 
+  metrics(truth = Group, estimate = .pred_class)
+```
+
+                       Seizure happened -- No seizure happened
+    Seizure predicted          TP                     FP
+    No seizure predicted       FN                     TN
+
+
+Accuracy (% correct) = (TP + TN) / (# episodes)
+False negative ("miss") rate = FN / (# actual seizures)
+False positive ("false alarm") rate = FP / (# true non-seizures)
+
+
+**Sensitivity:** one that predicts autism in almost every autism case.
+*not missing anyone who does have autism!*
+
+**Specificity**: able to distungish well between 
+It doesn't classify anyone who 
+If you get a positive, you *totally/definitely* have it.
+
+^^ hmmmm not sure about what he was saying here... look it up.
+
+
+## Logistic Regression
+
+```{r}
+#install.packages("glmnet")
+library(glmnet)
+spec <- workflow() %>% add_recipe(
+  recipe(Group ~ ., data = data)) %>%
+  add_model(logistic_reg(penalty = .001) %>% set_engine("glmnet")) #don't worry about these
+model <- spec %>% fit(data)
+```
+
+Look at the coefficient:
+
+```{r}
+model %>% pull_workflow_fit() %>% pluck('fit') %>% coef(s = .1) %>% as.matrix() %>% as_tibble(rownames = "name") %>% 
+  rename(coef = 2) %>% filter(abs(coef) > .01) %>% 
+  ggplot(aes(x = coef, y = fct_reorder(name, coef, abs))) + geom_col()
+```
+
+^ these could just be on a different scale... we forgot to normalize / scale these to be comparable. So, we shouldn't look @ the coefficient quite yet.
+
+```{r}
+model %>% predict(data, type = "prob")
+```
+
+```{r}
+model %>%
+  predict(data, type = "prob") %>%
+  bind_cols(data) %>% 
+  mutate(idx = row_number()) %>% 
+  ggplot(aes(x = idx, y = .pred_ASD, color = Group, shape = Group)) +
+  geom_hline(yintercept = .5) +
+  geom_point()
+```
+
+Should we have validated this? -- YES! 
+
+```{r}
+model %>% 
+  predict(data, type = "class") %>% 
+  bind_cols(data) %>% 
+  metrics(truth = Group, estimate = .pred_class)
+```
+
+
+You can correctly identify this 200 person dataset... so you need cross validation, at least.
+
+```{r}
+# cv_results %>% 
+#   collect_metrics(summarize = FALSE) %>% 
+#   ggplot(aes(x = .estimate, y = .metric)) + geom_boxplot()
+```
+
+
+
+
+
+

@@ -1,0 +1,86 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+```{r}
+confirmed_global_url <- paste0(
+  "https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/",
+  "csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_",
+  "confirmed", # also: "deaths", "recovered"
+  "_global.csv"
+)
+confirmed_global <- confirmed_global_url %>%
+  #pins::pin() %>%   # Uncomment this line if you want to keep a local cache.
+  read_csv(col_types = cols(
+    .default = col_double(),
+    `Province/State` = col_character(),
+    `Country/Region` = col_character()
+  )) %>%
+  rename(
+    country_or_region = `Country/Region`,
+    province_or_state = `Province/State`
+  )
+confirmed_global_long <-
+  confirmed_global %>%
+  pivot_longer(
+    -(1:4),
+    names_to = "date",
+    values_to = "confirmed"
+  )
+confirmed_global_long
+```
+
+```{r}
+confirmed_global_long %>%
+  ggplot(aes(x = date, y = confirmed)) +
+  geom_point()
+```
+
+# Deealing w/ Dates
+```{r}
+"2020-02-01" %>%
+  parse_date() %>%
+  lubridate::month()
+```
+
+
+```{r}
+#"2/1/20" %>% parse_date() 
+#doesn't work -- this is a bad example
+```
+
+```{r}
+"2/1/20" %>%
+  parse_date_time("%m/%d/%y!*") %>%
+  lubridate::month()
+```
+
+```{r}
+confirmed_global_long <- confirmed_global_long %>%
+  mutate(formatted_date = parse_date_time(date, "%m/%d/%y!*"))
+```
+
+```{r}
+confirmed_global_long %>%
+  ggplot(aes(x = formatted_date, y = confirmed, fill )) +
+  geom_point()
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+

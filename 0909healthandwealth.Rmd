@@ -1,0 +1,49 @@
+---
+title: "Delete"
+author: "Kaitlyn Westra"
+date: "9/9/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+gapminder_sldr <- data.frame(read.csv('https://sldr.netlify.app/data/gapminder_clean.csv'))
+max(gapminder_sldr$year)
+gapminder2018 <- gapminder_sldr[gapminder_sldr$year == 2018,]
+```
+
+```{r}
+ggplot(data = gapminder2018) +
+  geom_point(mapping = aes(x = income, y = life_expectancy, colour = four_regions,
+                           size = population))
+```
+
+
+
+
+
+# GAPMINDER 2 -- in class walk-through
+```{r}
+#install.packages('gapminder')
+library(gapminder)
+gapminder <- gapminder::gapminder
+gapminder$year %>% max()
+gapminder %>%
+  filter(year == 2007) %>%
+  ggplot(mapping = aes(x = gdpPercap, y = lifeExp, color = continent, size = pop)) +
+  geom_point() + 
+  theme_light()
+```
+
+
+
+
+
+

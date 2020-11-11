@@ -1,0 +1,61 @@
+---
+title: "class0914"
+author: "Kaitlyn Westra"
+date: "9/14/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+#library(skimr)
+```
+
+
+```{r}
+
+hotels <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-02-11/hotels.csv')
+
+```
+
+```{r ex1}
+hotels %>%
+  filter(
+    country == "PRT", 
+    lead_time < 1
+    )
+```
+
+```{r ex2}
+hotels %>%
+  filter(
+    children >= 1 | babies >= 1
+    )
+```
+
+```{r}
+hotels %>%
+  filter(
+    (children >= 1 | babies >= 1),
+    hotel == "Resort Hotel"
+    ) %>%
+  nrow()
+```
+
+```{r}
+hotels %>%
+  filter(
+    (children >= 1 | babies >= 1),
+    hotel == "City Hotel"
+    ) %>%
+  nrow()
+```
+
+
+
+
+
+
