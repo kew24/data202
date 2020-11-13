@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r packages}
 library(tidyverse)
 library(tidymodels)
-#library(ggridges)
+library(ggridges)
 ```
 
 ```{r}
@@ -44,7 +44,7 @@ autism %>%
   select(-`Vineland ABC`) %>% 
   pivot_longer(-Group, names_to = "Measure") %>% 
   ggplot(aes(x = value, y = Measure)) +
-  ggplot2::geom_boxplot() + 
+  geom_density_ridges() + 
   facet_wrap(vars(Group), scales = "free_x")
 ```
 
@@ -54,9 +54,9 @@ autism %>%
   select(-`Vineland ABC`) %>% 
   pivot_longer(-Group, names_to = "Measure") %>% 
   ggplot(aes(x = value, y = Group)) +
-  geom_boxplot() +
-  facet_wrap(vars(Measure), scales = "free_x")# + 
-  #theme_ridges()
+  geom_density_ridges() +
+  facet_wrap(vars(Measure), scales = "free_x") + 
+  theme_ridges()
 ```
 
 % oxidized seems to be higher for ASD. Maybe a cutoff @ 0.15 would be useful here to predict. Maybe a decision tree could cut here.
@@ -178,11 +178,26 @@ model %>%
 You can correctly identify this 200 person dataset... so you need cross validation, at least.
 
 ```{r}
-# cv_results %>% 
-#   collect_metrics(summarize = FALSE) %>% 
-#   ggplot(aes(x = .estimate, y = .metric)) + geom_boxplot()
+resamples <- data %>% vfold_cv(v = 10, strata = Group)
+cv_results <- spec %>% 
+  fit_resamples(resamples, metrics = metrics)
+
+
+cv_results %>%
+  collect_metrics(summarize = FALSE) %>%
+  ggplot(aes(x = .estimate, y = .metric)) + geom_boxplot()
 ```
 
+```{r}
+spec <- workflow() %>% add_recipe(
+  recipe(Group ~ ., data = data)) %>%
+  add_model(decision_tree(mode = "classification") %>% set_engine("rpart"))
+cv_results <- spec %>% 
+  fit_resamples(resamples, metrics = metrics)
+cv_results %>% 
+  collect_metrics(summarize = FALSE) %>% 
+  ggplot(aes(x = .estimate, y = .metric)) + geom_boxplot()
+```
 
 
 
