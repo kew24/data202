@@ -1,0 +1,62 @@
+---
+title: "Scraping Examples"
+author: "Kaitlyn Westra"
+date: "11/16/2020"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Solar Flares
+
+```{r}
+if (!file.exists('flare.data2')) {
+  #download.file("https://archive.ics.uci.")
+  #get file from UCI ML archive
+}
+```
+
+```{r}
+#way more stuff here
+```
+
+
+
+
+# Wunderground
+
+```{r}
+library(rvest)
+```
+
+```{r}
+html <- read_html('https://www.wunderground.com/history/monthly/KGRR/date/2020-11')
+html %>%
+  html_nodes("lib-city-history-observation table")
+```
+
+Look at inspect = = > inspector and = = > network.
+Get the json object.
+Copy --> copy response.
+Make new text file & paste that!
+
+I obviously did something wrong, as my .json isn't telling me all the information I want. I think I copied the wrong .json file, but I don't know where the right one is. But... this is what it would look like if I had used the right file.
+
+```{r}
+library(jsonlite)
+weather_hist <- jsonlite::read_json("./data/wunderground-hist.json", simplifyVector = TRUE)
+observations <- weather_hist$observations
+glimpse(observations)
+weather_hist$status %>% glimpse()
+```
+
+when you're typing, look at the grey thing for a function to see which package you're using it from  
+turns anything ambiguous into an error
+
+
+BigQuery: Google Cloud Platform (CalvinDSDev)  
+Free to access from Google.
+
