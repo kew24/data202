@@ -6,35 +6,18 @@ Kaitlyn Westra
 ``` r
 library(palmerpenguins)
 library(tidyverse)
-```
-
-    ## ── Attaching packages ────── tidyverse 1.3.0 ──
-
-    ## ✓ ggplot2 3.3.2     ✓ purrr   0.3.4
-    ## ✓ tibble  3.0.3     ✓ dplyr   1.0.2
-    ## ✓ tidyr   1.1.0     ✓ stringr 1.4.0
-    ## ✓ readr   1.3.1     ✓ forcats 0.5.0
-
-    ## ── Conflicts ───────── tidyverse_conflicts() ──
-    ## x dplyr::filter() masks stats::filter()
-    ## x dplyr::lag()    masks stats::lag()
-
-``` r
 library(workflows)
 library(parsnip)
 library(recipes)
+library(rsample)
+library(tidymodels)
 ```
 
-    ## 
-    ## Attaching package: 'recipes'
+Penguins
+========
 
-    ## The following object is masked from 'package:stringr':
-    ## 
-    ##     fixed
-
-    ## The following object is masked from 'package:stats':
-    ## 
-    ##     step
+How does bill length relate to bill depth?
+------------------------------------------
 
 ``` r
 knitr::include_graphics("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/master/man/figures/logo.png")
@@ -55,13 +38,11 @@ ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
   labs(title = "Penguin bill dimensions", subtitle = "Palmer Station LTER", x = "Bill length (mm)", y = "Bill depth (mm)")
 ```
 
-    ## `geom_smooth()` using formula 'y ~ x'
-
-    ## Warning: Removed 2 rows containing non-finite values (stat_smooth).
-
-    ## Warning: Removed 2 rows containing missing values (geom_point).
-
 ![](1118inference_files/figure-markdown_github/from-arnold-3.png)
+
+It looks like a negative relationship...
+
+But when we separate by Penguin species, we see something different:
 
 ``` r
 ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm, color = species, shape = species)) +
@@ -78,13 +59,14 @@ ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm, color = species, sha
         legend.background = element_rect(fill = "white", color = NA))
 ```
 
-    ## `geom_smooth()` using formula 'y ~ x'
+![](1118inference_files/figure-markdown_github/from-arnold2-1.png)
 
-    ## Warning: Removed 2 rows containing non-finite values (stat_smooth).
+It's really a *positive* relationship! (Simpson's Paradox)
 
-    ## Warning: Removed 2 rows containing missing values (geom_point).
+This leads us to realize that taking into account the species can drastically change our interpretation of other features... meaning **it rarely makes sense to think about one feature in isolation**.
 
-![](1118inference_files/figure-markdown_github/from-arnold-4.png)
+Ames Houses
+===========
 
 ``` r
 #data(ames, package = "modeldata")
@@ -100,6 +82,9 @@ ames_train <- rsample::training(ames_split)
 ames_test <- rsample::testing(ames_split)
 ```
 
+Variable Importance Plots
+-------------------------
+
 ``` r
 regresion_workflow <- workflows::workflow() %>%  add_model(decision_tree(mode = "regression") %>% set_engine('rpart')) 
 model <- regresion_workflow %>% 
@@ -109,3 +94,48 @@ model %>% pull_workflow_fit() %>% vip::vip(num_features = 15L)
 ```
 
 ![](1118inference_files/figure-markdown_github/unnamed-chunk-2-1.png)
+
+How much does it help to have a feature in?
+-------------------------------------------
+
+``` r
+set.seed(20201118)
+resamples <- vfold_cv(ames_train, v = 10)
+
+regresion_workflow %>% 
+  add_recipe(recipe(Sale_Price ~ ., data = ames_train)) %>% 
+  fit_resamples(resamples = resamples, metrics = metric_set(mae, rmse)) %>%
+  collect_metrics() %>%
+  knitr::kable()
+```
+
+| .metric | .estimator |      mean|    n|   std\_err|
+|:--------|:-----------|---------:|----:|----------:|
+| mae     | standard   |  25.47449|   10|  0.5586320|
+| rmse    | standard   |  36.67489|   10|  0.9296087|
+
+Without any of the Qual variables:
+
+``` r
+regresion_workflow %>% 
+  add_recipe(recipe(Sale_Price ~ ., data = ames_train) %>% step_rm(ends_with("Qual"))) %>%
+  fit_resamples(resamples = resamples, metrics = metric_set(mae, rmse)) %>%
+  collect_metrics() %>%
+  knitr::kable()
+```
+
+| .metric | .estimator |      mean|    n|   std\_err|
+|:--------|:-----------|---------:|----:|----------:|
+| mae     | standard   |  25.53904|   10|  0.7569299|
+| rmse    | standard   |  36.68310|   10|  1.0239794|
+
+``` r
+regresion_workflow %>% 
+  add_recipe(recipe(Sale_Price ~ ., data = ames_train) %>% step_rm(ends_with("Qual"))) %>%
+  fit(data = ames_train) %>%
+  pull_workflow_fit() %>% vip::vip(num_features = 15L)
+```
+
+![](1118inference_files/figure-markdown_github/unnamed-chunk-5-1.png)
+
+When we take out the quality variables, we see that the other features get prioritized differently.

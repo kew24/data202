@@ -9,21 +9,34 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r, message=FALSE}
 library(palmerpenguins)
 library(tidyverse)
 library(workflows)
 library(parsnip)
 library(recipes)
+library(rsample)
+library(tidymodels)
 ```
 
-```{r from-arnold}
+# Penguins
+
+## How does bill length relate to bill depth?
+
+```{r from-arnold, warning=FALSE, message=FALSE}
 knitr::include_graphics("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/master/man/figures/logo.png")
 knitr::include_graphics("https://raw.githubusercontent.com/allisonhorst/palmerpenguins/master/man/figures/culmen_depth.png")
 ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm)) +
   geom_point() +
   geom_smooth(method = "lm") +
   labs(title = "Penguin bill dimensions", subtitle = "Palmer Station LTER", x = "Bill length (mm)", y = "Bill depth (mm)")
+```
+
+It looks like a negative relationship...
+
+But when we separate by Penguin species, we see something different:
+
+```{r from-arnold2, warning=FALSE, message=FALSE}
 ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm, color = species, shape = species)) +
   geom_point() +
   geom_smooth(method = "lm") +
@@ -36,6 +49,15 @@ ggplot(penguins, aes(x = bill_length_mm, y = bill_depth_mm, color = species, sha
        shape = "Penguin species") +
   theme(legend.position = c(0.85, 0.15),
         legend.background = element_rect(fill = "white", color = NA))
+```
+
+It's really a *positive* relationship! (Simpson's Paradox)
+
+This leads us to realize that taking into account the species can drastically change our interpretation of other features... meaning **it rarely makes sense to think about one feature in isolation**.
+
+# Ames Houses
+
+```{r ames-setup}
 #data(ames, package = "modeldata")
 ames <- AmesHousing::make_ames()
 ames_all <- ames %>%
@@ -50,7 +72,7 @@ ames_test <- rsample::testing(ames_split)
 ```
 
 
-
+## Variable Importance Plots
 
 ```{r}
 regresion_workflow <- workflows::workflow() %>%  add_model(decision_tree(mode = "regression") %>% set_engine('rpart')) 
@@ -60,3 +82,35 @@ model <- regresion_workflow %>%
 model %>% pull_workflow_fit() %>% vip::vip(num_features = 15L)
 ```
 
+## How much does it help to have a feature in?
+
+```{r}
+set.seed(20201118)
+resamples <- vfold_cv(ames_train, v = 10)
+
+regresion_workflow %>% 
+  add_recipe(recipe(Sale_Price ~ ., data = ames_train)) %>% 
+  fit_resamples(resamples = resamples, metrics = metric_set(mae, rmse)) %>%
+  collect_metrics() %>%
+  knitr::kable()
+```
+
+Without any of the Qual variables:
+
+```{r}
+regresion_workflow %>% 
+  add_recipe(recipe(Sale_Price ~ ., data = ames_train) %>% step_rm(ends_with("Qual"))) %>%
+  fit_resamples(resamples = resamples, metrics = metric_set(mae, rmse)) %>%
+  collect_metrics() %>%
+  knitr::kable()
+```
+
+```{r}
+regresion_workflow %>% 
+  add_recipe(recipe(Sale_Price ~ ., data = ames_train) %>% step_rm(ends_with("Qual"))) %>%
+  fit(data = ames_train) %>%
+  pull_workflow_fit() %>% vip::vip(num_features = 15L)
+```
+
+
+When we take out the quality variables, we see that the other features get prioritized differently. 
