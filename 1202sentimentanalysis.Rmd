@@ -1,0 +1,130 @@
+---
+title: "Sentiment Analysis"
+author: "Kaitlyn Westra"
+date: "12/2/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r packages}
+library(tidyverse)
+library(reticulate)
+```
+
+```{r python-install} 
+# if (!py_module_available("torch"))
+#   py_install("pytorch", channel = "pytorch")
+# if (!py_module_available("transformers"))
+#   py_install('transformers', pip = TRUE)
+#py_install("pytorch", channel = "pytorch")
+#py_install('transformers', pip = TRUE)
+```
+
+```{python os}
+
+#conda install nomkl <- that took forever and didn't finish... conflicts...
+
+#import os
+#os.environ['KMP_DUPLICATE_LIB_OK']='True'
+```
+
+
+```{python imports}
+from transformers import pipeline
+from pprint import pprint
+
+```
+
+
+```{python everything}
+
+sentiment_pipeline = pipeline("sentiment-analysis")
+
+def text_to_sentiment(sentence):
+  result = sentiment_pipeline(sentence)[0]
+  if result['label'] == "POSITIVE": return result['score']
+  if result['label'] == "NEGATIVE": return -result['score']
+  raise ValueError("Unknown result label: " + result['label'])
+
+print('hate'+str(text_to_sentiment("I hate you")))
+print('love'+str(text_to_sentiment("I love you")))
+print(text_to_sentiment("This is bad."))
+print(text_to_sentiment("This is not that bad."))
+print(text_to_sentiment("Let's go get Italian food"))
+print(text_to_sentiment("Let's go get Chinese food"))
+print(text_to_sentiment("Let's go get Mexican food"))
+
+print(text_to_sentiment("My name is Emily"))
+print(text_to_sentiment("My name is Heather"))
+print(text_to_sentiment("My name is Latisha"))
+print(text_to_sentiment("My name is Nour"))
+
+
+NAMES_BY_ETHNICITY = {
+    # The first two lists are from the Caliskan et al. appendix describing the
+    # Word Embedding Association Test.
+    'White': [
+        'Adam', 'Chip', 'Harry', 'Josh', 'Roger', 'Alan', 'Frank', 'Ian', 'Justin',
+        'Ryan', 'Andrew', 'Fred', 'Jack', 'Matthew', 'Stephen', 'Brad', 'Greg', 'Jed',
+        'Paul', 'Todd', 'Brandon', 'Hank', 'Jonathan', 'Peter', 'Wilbur', 'Amanda',
+        'Courtney', 'Heather', 'Melanie', 'Sara', 'Amber', 'Crystal', 'Katie',
+        'Meredith', 'Shannon', 'Betsy', 'Donna', 'Kristin', 'Nancy', 'Stephanie',
+        'Bobbie-Sue', 'Ellen', 'Lauren', 'Peggy', 'Sue-Ellen', 'Colleen', 'Emily',
+        'Megan', 'Rachel', 'Wendy'
+    ],
+    'Black': [
+        'Alonzo', 'Jamel', 'Lerone', 'Percell', 'Theo', 'Alphonse', 'Jerome',
+        'Leroy', 'Rasaan', 'Torrance', 'Darnell', 'Lamar', 'Lionel', 'Rashaun',
+        'Tyree', 'Deion', 'Lamont', 'Malik', 'Terrence', 'Tyrone', 'Everol',
+        'Lavon', 'Marcellus', 'Terryl', 'Wardell', 'Aiesha', 'Lashelle', 'Nichelle',
+        'Shereen', 'Temeka', 'Ebony', 'Latisha', 'Shaniqua', 'Tameisha', 'Teretha',
+        'Jasmine', 'Latonya', 'Shanise', 'Tanisha', 'Tia', 'Lakisha', 'Latoya',
+        'Sharise', 'Tashika', 'Yolanda', 'Lashandra', 'Malika', 'Shavonn',
+        'Tawanda', 'Yvette'
+    ],
+    # This list comes from statistics about common Hispanic-origin names in the US.
+    'Hispanic': [
+        'Juan', 'José', 'Miguel', 'Luís', 'Jorge', 'Santiago', 'Matías', 'Sebastián',
+        'Mateo', 'Nicolás', 'Alejandro', 'Samuel', 'Diego', 'Daniel', 'Tomás',
+        'Juana', 'Ana', 'Luisa', 'María', 'Elena', 'Sofía', 'Isabella', 'Valentina',
+        'Camila', 'Valeria', 'Ximena', 'Luciana', 'Mariana', 'Victoria', 'Martina'
+    ],
+    # The following list conflates religion and ethnicity, I'm aware. So do given names.
+    #
+    # This list was cobbled together from searching baby-name sites for common Muslim names,
+    # as spelled in English. I did not ultimately distinguish whether the origin of the name
+    # is Arabic or Urdu or another language.
+    #
+    # I'd be happy to replace it with something more authoritative, given a source.
+    'Arab/Muslim': [
+        'Mohammed', 'Omar', 'Ahmed', 'Ali', 'Youssef', 'Abdullah', 'Yasin', 'Hamza',
+        'Ayaan', 'Syed', 'Rishaan', 'Samar', 'Ahmad', 'Zikri', 'Rayyan', 'Mariam',
+        'Jana', 'Malak', 'Salma', 'Nour', 'Lian', 'Fatima', 'Ayesha', 'Zahra', 'Sana',
+        'Zara', 'Alya', 'Shaista', 'Zoya', 'Yasmin'
+    ]
+}
+```
+
+```{r}
+# nested dictionary to normal data tablee
+name_sentiments <- 
+  py$NAMES_BY_ETHNICITY %>% enframe("ethnicity", "name") %>% unnest(name) %>% 
+  rowwise() %>% 
+  mutate(sentiment = py$text_to_sentiment(glue("My name is {name}")))
+name_sentiments %>% arrange(sentiment)
+
+ggplot(name_sentiments, aes(x = sentiment, y = ethnicity)) + geom_boxplot()
+
+```
+
+
+### Question Answering
+
+
+
+
+
+
